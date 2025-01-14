@@ -1,12 +1,14 @@
 from django.shortcuts import render, get_object_or_404
+from django.template.defaulttags import comment
 from django.views.generic import ListView
 from pyexpat.errors import messages
 
-from .forms import EmailPostForm
+from .forms import EmailPostForm, CommentForm
 from .models import Post
 from django.http import Http404
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.mail import send_mail
+from django.views.decorators.http import require_POST
 
 
 '''def post_list(request):
@@ -37,7 +39,10 @@ def post_detail(request, year, month, day, post):
         status = Post.Status.PUBLISHED,
         slug=post, publish__year=year, publish__month=month, publish__day=day
     )
-    return render(request, 'blog/detail.html', context={'post': post})
+    comments = post.comments.filter(active=True)
+    form = CommentForm()
+
+    return render(request, 'blog/detail.html', context={'post': post, 'comments': comments, 'form': form})
 
 def post_share(request, post_id):
     post = get_object_or_404(Post, pk = post_id, status = Post.Status.PUBLISHED)
@@ -65,3 +70,14 @@ def post_share(request, post_id):
     else:
         form = EmailPostForm()
     return render(request, 'blog/post_share.html', {'post': post, 'form': form, 'sent': sent})
+
+@require_POST
+def post_comment(request, post_id):
+    post = get_object_or_404(Post, pk = post_id, status = Post.Status.PUBLISHED)
+    comment = None
+    form = CommentForm(data=request.POST)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.post = post
+        comment.save()
+    return render(request, 'blog/comment.html', context={'post': post, 'form':form, 'comment':comment})
