@@ -13,7 +13,7 @@ from django.core.mail import send_mail
 from django.views.decorators.http import require_POST
 from taggit.models import Tag
 from django.db.models import Count
-from django.contrib.postgres.search import SearchVector
+from django.contrib.postgres.search import (SearchVector, SearchQuery, SearchRank, TrigramSimilarity)
 def post_list(request, tag_slug=None):
     posts_list = Post.published.all()
     tag = None
@@ -111,7 +111,8 @@ def post_search(request):
             query = form.cleaned_data['query']
             results = (
                 Post.published.annotate(
-                    search = SearchVector('title', 'body'),
-                ).filter(search=query)
+                    similarity=TrigramSimilarity('title', query),
+                ).filter(similarity__gte=0.1)
+                .order_by('-similarity')
             )
     return render(request, 'blog/search.html', context={'form':form, 'results':results, 'query':query})
